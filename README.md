@@ -1,1 +1,1 @@
-# sm-mgt
+# sm_mgt_django
