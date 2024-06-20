@@ -26,7 +26,7 @@ def get_youtube_comments(video_id, api_key):
 
 if __name__ == "__main__":
     # Replace 'YOUR_API_KEY' with your actual YouTube Data API key
-    api_key = 'AIzaSyCCelfOhh7zVUoyGxI1czv0FCUwmYkMb5U'
+    api_key = ''
     # Replace 'VIDEO_ID' with the actual video ID you want to fetch comments from
     video_id = 'nWzbmbHa8fw'
 
