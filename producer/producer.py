@@ -2,7 +2,7 @@ import pika
 import json
 from config.settings import RABBITMQ_URL, QUEUE_NAME
 
-def send_to_queue(message -> Any) ->  None:
+def send_to_queue(message):
     """
     Sends a message to a RabbitMQ queue.
 
