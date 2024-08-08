@@ -2,6 +2,7 @@ import pika
 import json
 from config.settings import RABBITMQ_URL, QUEUE_NAME
 from utils.file_writer import write_to_excel
+import time
 
 def callback(ch, method, properties, body):
     """
@@ -34,10 +35,15 @@ def start_consumer():
     Returns:
         None
     """
-    connection = pika.BlockingConnection(pika.URLParameters(RABBITMQ_URL))
-    channel = connection.channel()
-    channel.queue_declare(queue=QUEUE_NAME)
-    channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback, auto_ack=True)
-    print('Waiting for messages. To exit press CTRL+C')
-    channel.start_consuming()
+    while True:
+        try:
+            connection = pika.BlockingConnection(pika.URLParameters(RABBITMQ_URL))
+            channel = connection.channel()
+            channel.queue_declare(queue=QUEUE_NAME)
+            channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback, auto_ack=True)
+            print('Waiting for messages. To exit press CTRL+C')
+            channel.start_consuming()
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            time.sleep(30)
 
