@@ -5,11 +5,12 @@ import logging
 from utils.key_manager import youtube_api_manager
 from producer.producer import send_to_queue
 import json
-from config.settings import EXCLUDE_VIDEOS
+from config.settings import EXCLUDE_VIDEOS, PUBLISHED_AFTER, PUBLISHED_BEFORE
+from googleapiclient.errors import HttpError
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def get_channel_videos(channel_id):
+def get_channel_videos(channel_id, published_after=PUBLISHED_AFTER, published_before=PUBLISHED_BEFORE):
     """
     Fetches a list of video IDs from a specified YouTube channel.
 
@@ -26,6 +27,8 @@ def get_channel_videos(channel_id):
     youtube = youtube_api_manager.get_youtube_client()
     response = youtube.search().list(
         part='id',
+        publishedAfter=published_after,
+        publishedBefore=published_before,
         channelId=channel_id,
         maxResults=50,
         order='date'
@@ -114,10 +117,24 @@ def monitor_channel_comments(channel_id, interval=60):
                     continue
                 try:
                     comments = get_comments(video_id)
+                except HttpError as e:
+                    if e.resp.status == 403:
+                        error_reason = e.error_details[0]['reason']
+                        if 'quotaExceeded' in error_reason:
+                            logging.error(f"Quota exceeded")
+                            youtube_api_manager.rotate_key()
+                        else:
+                            logging.error(f"HTTP 403 error for video ID: {video_id}. Adding to EXCLUDE_VIDEOS.")
+                            EXCLUDE_VIDEOS.append(video_id)
+                            time.sleep(interval)
+                    else:
+                        logging.error(f"An error occurred: {e}")
+                        time.sleep(interval)
+                        youtube_api_manager.rotate_key()
                 except Exception as e:
-                    logging.error(f"Error fetching comments with key {youtube_api_manager.current_key}: {e}")
+                    logging.error(f"An error occurred: {e}")
+                    time.sleep(interval)
                     youtube_api_manager.rotate_key()
-                    comments = get_comments(video_id)
                 
                 new_comments = [c for c in comments if c['text'] not in seen_comments]
                 if new_comments:
@@ -126,18 +143,7 @@ def monitor_channel_comments(channel_id, interval=60):
                         send_to_queue(comment)
                         seen_comments.update(comment['text'])
         except Exception as e:
-            if e.resp.status == 403:
-                error_reason = e.error_details()[0]['reason']
-                if 'quotaExceeded' in error_reason:
-                    logging.error(f"Quota exceeded")
-                    time.sleep(3600)
-                    youtube_api_manager.rotate_key()
-                else:
-                    logging.error(f"HTTP 403 error for video ID: {video_id}. Adding to EXCLUDE_VIDEOS.")
-                    EXCLUDE_VIDEOS.append(video_id)
-                    time.sleep(interval)
-            else:
-                logging.error(f"An error occurred: {e}")
-                time.sleep(interval)
-                youtube_api_manager.rotate_key()
+            logging.error(f"An error occurred: {e}")
+            time.sleep(interval)
+            youtube_api_manager.rotate_key()
 
