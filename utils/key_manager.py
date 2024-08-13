@@ -4,7 +4,7 @@ import itertools
 import time
 config_dir = os.path.abspath(os.getcwd()+"/config")
 sys.path.append(config_dir)
-from settings import YOUTUBE_API_KEY
+from settings import YOUTUBE_API_KEY_1, YOUTUBE_API_KEY_2, YOUTUBE_API_KEY_3, YOUTUBE_API_KEY_4
 
 class YouTubeAPIKeyManager:
     def __init__(self, api_keys):
@@ -35,10 +35,10 @@ class YouTubeAPIKeyManager:
         
     
 api_keys = [
-    'YOUTUBE_API_KEY_1',
-    'YOUTUBE_API_KEY_2',
-    'YOUTUBE_API_KEY_4'
-    'YOUTUBE_API_KEY_3',
+    YOUTUBE_API_KEY_1,
+    YOUTUBE_API_KEY_2,
+    YOUTUBE_API_KEY_4,
+    YOUTUBE_API_KEY_3,
 ]
 QUOTA_LIMIT = 10000  # Daily quota limit per key
 QUOTA_USAGE = [0] * len(api_keys)  # Track quota usage for each key

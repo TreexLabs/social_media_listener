@@ -25,32 +25,41 @@ def get_channel_videos(channel_id, published_after=PUBLISHED_AFTER, published_be
     """
     videos = []
     youtube = youtube_api_manager.get_youtube_client()
-    response = youtube.search().list(
-        part='id',
-        publishedAfter=published_after,
-        publishedBefore=published_before,
-        channelId=channel_id,
-        maxResults=50,
-        order='date'
-    ).execute()
-    
-    while response:
-        try:
-            for item in response['items']:
-                if item['id']['kind'] == 'youtube#video':
-                    videos.append(item['id']['videoId'])
-            if 'nextPageToken' in response:
-                response = youtube.search().list(
-                channelId=channel_id,
-                part='id',
-                maxResults=50,
-                order='date',
-                pageToken=response['nextPageToken']).execute()
-            else:
+    try:
+        response = youtube.search().list(
+            part='snippet',
+            publishedAfter=published_after,
+            publishedBefore=published_before,
+            channelId=channel_id,
+            maxResults=50,
+            order='date'
+        ).execute()
+        
+        while response:
+            try:
+                for item in response['items']:
+                    if item['id']['kind'] == 'youtube#video':
+                        published_at = item['snippet']['publishedAt']
+                        if published_at >= published_after and published_at <= published_before and item['id']['videoId'] not in EXCLUDE_VIDEOS:
+                            videos.append(item['id']['videoId'])
+                if 'nextPageToken' in response:
+                    response = youtube.search().list(
+                    channelId=channel_id,
+                    publishedAfter=published_after,
+                    publishedBefore=published_before,
+                    part='snippet',
+                    maxResults=50,
+                    order='date',
+                    pageToken=response['nextPageToken']).execute()
+                else:
+                    break
+            except Exception as e:
+                logging.error(f"An error occurred: {e}")
                 break
-        except Exception as e:
-            logging.error(f"An error occurred: {e}")
-            break
+    except HttpError as e:
+        logging.error(f"An error occurred: {e}")
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
     return videos
 
 def get_comments(video_id):
