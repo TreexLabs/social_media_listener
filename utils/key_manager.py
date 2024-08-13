@@ -35,10 +35,10 @@ class YouTubeAPIKeyManager:
         
     
 api_keys = [
-    'AIzaSyCIW2AFalSwm3pPYfRDUAgltBx-AgAwBEM',
-    'AIzaSyB2qB9lqcPyxvunJE2ZptowwrlSzuvCHX8',
-    YOUTUBE_API_KEY,
-    'AIzaSyAM3osaFTBDKzid9Gyv5w6sYdB1WpS9qyc'
+    'YOUTUBE_API_KEY_1',
+    'YOUTUBE_API_KEY_2',
+    'YOUTUBE_API_KEY_4'
+    'YOUTUBE_API_KEY_3',
 ]
 QUOTA_LIMIT = 10000  # Daily quota limit per key
 QUOTA_USAGE = [0] * len(api_keys)  # Track quota usage for each key
