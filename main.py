@@ -5,14 +5,7 @@ import time
 from config.settings import CHANNEL_ID
 
 def fetch_and_send_comments(channel_id, stop_event):
-    while not stop_event.is_set():
-        monitor_channel_comments(channel_id)
-        time.sleep(10)
-
-def consumer_thread(stop_event):
-    while not stop_event.is_set():
-        start_consumer()
-        time.sleep(10) 
+    monitor_channel_comments(channel_id, stop_event)
 
 if __name__ == '__main__':
     channel_id = CHANNEL_ID  # Replace with your actual video ID
@@ -20,7 +13,7 @@ if __name__ == '__main__':
 
     # Start threads
     fetch_thread = threading.Thread(target=fetch_and_send_comments, args=(channel_id, stop_event))
-    consumer_thread = threading.Thread(target=consumer_thread, args=(stop_event,))
+    consumer_thread = threading.Thread(target=start_consumer, args=(stop_event,))
     
     fetch_thread.start()
     consumer_thread.start()

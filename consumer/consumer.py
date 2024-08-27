@@ -3,6 +3,8 @@ import json
 from config.settings import RABBITMQ_URL, QUEUE_NAME
 from utils.file_writer import write_to_excel
 import time
+import threading
+import backoff
 
 def callback(ch, method, properties, body):
     """
@@ -17,10 +19,18 @@ def callback(ch, method, properties, body):
     Returns:
     None
     """
-    message = json.loads(body)
-    write_to_excel(message)
+    try:
+        message = json.loads(body)
+        write_to_excel(message)
+    except Exception as e:
+        print(f"Error processing message: {e}")
 
-def start_consumer():
+@backoff.on_exception(backoff.expo, pika.exceptions.AMQPConnectionError, max_time=300)
+def connect_to_rabbitmq():
+    """Establish a connection to RabbitMQ with retries on failure using exponential backoff."""
+    return pika.BlockingConnection(pika.URLParameters(RABBITMQ_URL))
+
+def start_consumer(stop_event):
     """
     Establishes a connection to a RabbitMQ server and starts consuming messages from a specified queue.
 
@@ -35,15 +45,40 @@ def start_consumer():
     Returns:
         None
     """
-    while True:
+    while not stop_event.is_set():
         try:
-            connection = pika.BlockingConnection(pika.URLParameters(RABBITMQ_URL))
+            connection = connect_to_rabbitmq()
             channel = connection.channel()
             channel.queue_declare(queue=QUEUE_NAME)
-            channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback, auto_ack=True)
+            def check_stop_event(ch, method, properties, body):
+                if not stop_event.is_set():
+                    callback(ch, method, properties, body)
+                else:
+                    channel.stop_consuming()
+            channel.basic_consume(queue=QUEUE_NAME, on_message_callback=check_stop_event, auto_ack=True)
             print('Waiting for messages. To exit press CTRL+C')
             channel.start_consuming()
+        except pika.exceptions.AMQPConnectionError as e:
+            print(f"Connection error occurred: {e}")
+            time.sleep(3)
         except Exception as e:
             print(f"An error occurred: {e}")
-            time.sleep(30)
+            time.sleep(3)
+        finally:
+            if connection.is_open:
+                try:
+                    connection.close()
+                except Exception as e:
+                    print(f"Error closing connection: {e}")
 
+# Usage
+if __name__ == '__main__':
+    stop_event = threading.Event()
+    consumer_thread = threading.Thread(target=start_consumer, args=(stop_event,))
+    consumer_thread.start()
+
+    # Run the consumer for 3 hours then stop
+    time.sleep(3600)
+    stop_event.set()
+    consumer_thread.join()
+    print("Consumer has been stopped.")
