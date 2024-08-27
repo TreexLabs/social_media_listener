@@ -5,8 +5,10 @@ import logging
 from utils.key_manager import youtube_api_manager
 from producer.producer import send_to_queue
 import json
-from config.settings import EXCLUDE_VIDEOS, PUBLISHED_AFTER, PUBLISHED_BEFORE
+from config.settings import EXCLUDE_VIDEOS, PUBLISHED_AFTER, PUBLISHED_BEFORE, COMMENT_PUBLISHED_BEFORE
 from googleapiclient.errors import HttpError
+import datetime
+
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -62,7 +64,8 @@ def get_channel_videos(channel_id, published_after=PUBLISHED_AFTER, published_be
         logging.error(f"An error occurred: {e}")
     return videos
 
-def get_comments(video_id):
+def get_comments(video_id, published_after=datetime.datetime.strptime(PUBLISHED_AFTER, '%Y-%m-%dT%H:%M:%SZ'), 
+                 published_before=datetime.datetime.strptime(COMMENT_PUBLISHED_BEFORE, '%Y-%m-%dT%H:%M:%SZ')):
     """
     Retrieves comments from a YouTube video.
 
@@ -84,14 +87,16 @@ def get_comments(video_id):
     while response:
         try:
             for item in response['items']:
-                comments.append({
-                    'video_id': item['snippet']['topLevelComment']['snippet']['videoId'],
-                    'author': item['snippet']['topLevelComment']['snippet']['authorDisplayName'],
-                    'text': item['snippet']['topLevelComment']['snippet']['textOriginal'],
-                    'published_at': item['snippet']['topLevelComment']['snippet']['publishedAt'],
-                    'like_count': item['snippet']['topLevelComment']['snippet']['likeCount'],
-                    'reply_count': item['snippet']['totalReplyCount']
-                })
+                publishedAt = datetime.datetime.strptime(item['snippet']['topLevelComment']['snippet']['publishedAt'], '%Y-%m-%dT%H:%M:%SZ')
+                if published_after <= publishedAt <= published_before:
+                    comments.append({
+                        'video_id': item['snippet']['topLevelComment']['snippet']['videoId'],
+                        'author': item['snippet']['topLevelComment']['snippet']['authorDisplayName'],
+                        'text': item['snippet']['topLevelComment']['snippet']['textOriginal'],
+                        'published_at': item['snippet']['topLevelComment']['snippet']['publishedAt'],
+                        'like_count': item['snippet']['topLevelComment']['snippet']['likeCount'],
+                        'reply_count': item['snippet']['totalReplyCount']
+                    })
             if 'nextPageToken' in response:
                 response = youtube.commentThreads().list(
                     part='snippet',
