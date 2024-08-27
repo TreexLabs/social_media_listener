@@ -113,21 +113,20 @@ def get_comments(video_id, published_after=datetime.datetime.strptime(PUBLISHED_
     
     return comments
 
-def monitor_channel_comments(channel_id, interval=60):
+def monitor_channel_comments(channel_id, stop_event, interval=60):
     seen_comments = set()
     seen_videos = set()
-    while True:
+    while not stop_event.is_set():
         try:
             logging.info("Checking for new videos and comments...")
             videos = get_channel_videos(channel_id)
-            
             new_videos = [video for video in videos if video not in seen_videos]
             for video_id in new_videos:
                 logging.info(f"New video detected: {video_id}")
                 seen_videos.add(video_id)
             
             for video_id in videos:
-                if video_id in EXCLUDE_VIDEOS:
+                if video_id in EXCLUDE_VIDEOS or stop_event.is_set():
                     continue
                 try:
                     comments = get_comments(video_id)
@@ -153,11 +152,17 @@ def monitor_channel_comments(channel_id, interval=60):
                 new_comments = [c for c in comments if c['text'] not in seen_comments]
                 if new_comments:
                     for comment in new_comments:
+                        if stop_event.is_set():
+                            break
                         logging.info("New comment: %s", comment)
                         send_to_queue(comment)
                         seen_comments.update(comment['text'])
+                if stop_event.is_set():
+                    break
         except Exception as e:
             logging.error(f"An error occurred: {e}")
             time.sleep(interval)
             youtube_api_manager.rotate_key()
+        if stop_event.is_set():
+            break
 
