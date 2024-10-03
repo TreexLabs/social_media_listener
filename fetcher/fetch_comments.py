@@ -77,44 +77,39 @@ def get_comments(video_id, published_after=datetime.datetime.strptime(PUBLISHED_
     """
     comments = []
     youtube = youtube_api_manager.get_youtube_client()
-    response = youtube.commentThreads().list(
-        part='snippet',
-        videoId=video_id,
-        textFormat='plainText',
-        maxResults=100
-    ).execute()
-    
-    while response:
-        try:
-            for item in response['items']:
-                publishedAt = datetime.datetime.strptime(item['snippet']['topLevelComment']['snippet']['publishedAt'], '%Y-%m-%dT%H:%M:%SZ')
-                if published_after <= publishedAt <= published_before:
-                    comments.append({
-                        'video_id': item['snippet']['topLevelComment']['snippet']['videoId'],
-                        'author': item['snippet']['topLevelComment']['snippet']['authorDisplayName'],
-                        'text': item['snippet']['topLevelComment']['snippet']['textOriginal'],
-                        'published_at': item['snippet']['topLevelComment']['snippet']['publishedAt'],
-                        'like_count': item['snippet']['topLevelComment']['snippet']['likeCount'],
-                        'reply_count': item['snippet']['totalReplyCount']
-                    })
-            if 'nextPageToken' in response:
-                response = youtube.commentThreads().list(
-                    part='snippet',
-                    videoId=video_id,
-                    textFormat='plainText',
-                    pageToken=response['nextPageToken'],
-                    maxResults=100 
-                ).execute()
-            else:
+    try:
+        response = youtube.commentThreads().list(
+            part='snippet',
+            videoId=video_id,
+            textFormat='plainText',
+            maxResults=100
+        ).execute()
+        
+        while response:
+            try:
+                for item in response['items']:
+                    publishedAt = datetime.datetime.strptime(item['snippet']['topLevelComment']['snippet']['publishedAt'], '%Y-%m-%dT%H:%M:%SZ')
+                    if published_after <= publishedAt <= published_before:
+                        comments.append(item)
+                if 'nextPageToken' in response:
+                    response = youtube.commentThreads().list(
+                        part='snippet',
+                        videoId=video_id,
+                        textFormat='plainText',
+                        pageToken=response['nextPageToken'],
+                        maxResults=100 
+                    ).execute()
+                else:
+                    break
+            except Exception as e:
+                logging.error(f"An error occurred: {e}")
                 break
-        except Exception as e:
-            logging.error(f"An error occurred: {e}")
-            break
-    
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
     return comments
 
 def monitor_channel_comments(channel_id, stop_event, interval=60):
-    seen_comments = set()
+    # seen_comments = set()
     seen_videos = set()
     while not stop_event.is_set():
         try:
@@ -149,14 +144,12 @@ def monitor_channel_comments(channel_id, stop_event, interval=60):
                     time.sleep(interval)
                     youtube_api_manager.rotate_key()
                 
-                new_comments = [c for c in comments if c['text'] not in seen_comments]
-                if new_comments:
-                    for comment in new_comments:
+                if comments:
+                    for comment in comments:
                         if stop_event.is_set():
                             break
                         logging.info("New comment: %s", comment)
                         send_to_queue(comment)
-                        seen_comments.update(comment['text'])
                 if stop_event.is_set():
                     break
         except Exception as e:

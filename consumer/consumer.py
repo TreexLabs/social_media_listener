@@ -2,11 +2,12 @@ import pika
 import json
 from config.settings import RABBITMQ_URL, QUEUE_NAME
 from utils.file_writer import write_to_excel
+from utils.mongo_writer import write_to_mongo
 import time
 import threading
 import backoff
 
-def callback(ch, method, properties, body):
+def callback(ch, method, properties, body, is_write_excel=False):
     """
     Parses the JSON message from the body, and writes the parsed message to an Excel file.
 
@@ -21,7 +22,9 @@ def callback(ch, method, properties, body):
     """
     try:
         message = json.loads(body)
-        write_to_excel(message)
+        if is_write_excel:
+            write_to_excel(message)
+        write_to_mongo(message)
     except Exception as e:
         print(f"Error processing message: {e}")
 
@@ -52,7 +55,7 @@ def start_consumer(stop_event):
             channel.queue_declare(queue=QUEUE_NAME)
             def check_stop_event(ch, method, properties, body):
                 if not stop_event.is_set():
-                    callback(ch, method, properties, body)
+                    callback(ch, method, properties, body, True)
                 else:
                     channel.stop_consuming()
             channel.basic_consume(queue=QUEUE_NAME, on_message_callback=check_stop_event, auto_ack=True)

@@ -2,7 +2,15 @@ import pandas as pd
 from config.settings import EXCEL_OUTPUT_DIR
 import os
 
-def write_to_excel(comment):
+def write_to_excel(item):
+    comment = {
+                    'video_id': item['snippet']['topLevelComment']['snippet']['videoId'],
+                    'author': item['snippet']['topLevelComment']['snippet']['authorDisplayName'],
+                    'text': item['snippet']['topLevelComment']['snippet']['textOriginal'],
+                    'published_at': item['snippet']['topLevelComment']['snippet']['publishedAt'],
+                    'like_count': item['snippet']['topLevelComment']['snippet']['likeCount'],
+                    'reply_count': item['snippet']['totalReplyCount']
+                }
     date = comment['published_at'].split('T')[0]
     year, month, _ = date.split('-')
     directory = os.path.join(EXCEL_OUTPUT_DIR, year, month)
