@@ -16,7 +16,7 @@ Other API keys as needed for different social media platforms (e.g., Twitter, Fa
 Installation
 Clone the Repository:
 git clone git@github.com:TreexLabs/sm_mgt_django.git
-cd sm_mgt_django
+cd social_media_listener
 
 Create and Activate a Virtual Environment:
 python -m venv venv
